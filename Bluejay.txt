@@ -1,0 +1,122 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <string>
+#include <map>
+#include <ctime>
+
+using namespace std;
+
+
+struct EmployeeRecord {
+    string name;
+    string position;
+    string startTime;
+    string endTime;
+};
+
+bool hasWorkedFor7ConsecutiveDays(const vector<EmployeeRecord>& records, const string& employeeName) {
+    int consecutiveDays = 0;
+    for (const EmployeeRecord& record : records) {
+        if (record.name == employeeName) {
+            consecutiveDays++;
+            if (consecutiveDays == 7) {
+                return true;
+            }
+        } else {
+            consecutiveDays = 0;
+        }
+    }
+    return false;
+}
+
+
+bool hasShortTimeBetweenShifts(const vector<EmployeeRecord>& records, const string& employeeName) {
+    map<string, vector<time_t>> shiftTimes;
+    for (const EmployeeRecord& record : records) {
+        if (record.name == employeeName) {
+            struct tm tmStart = {};
+            struct tm tmEnd = {};
+            strptime(record.startTime.c_str(), "%Y-%m-%d %H:%M:%S", &tmStart);
+            strptime(record.endTime.c_str(), "%Y-%m-%d %H:%M:%S", &tmEnd);
+            time_t start = mktime(&tmStart);
+            time_t end = mktime(&tmEnd);
+            shiftTimes[employeeName].push_back(start);
+            shiftTimes[employeeName].push_back(end);
+        }
+    }
+
+    if (shiftTimes.find(employeeName) != shiftTimes.end()) {
+        vector<time_t>& times = shiftTimes[employeeName];
+        for (size_t i = 1; i < times.size(); i += 2) {
+            double hoursBetween = difftime(times[i], times[i - 1]) / 3600.0;
+            if (hoursBetween > 1 && hoursBetween < 10) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+
+bool hasWorkedMoreThan14Hours(const vector<EmployeeRecord>& records, const string& employeeName) {
+    for (const EmployeeRecord& record : records) {
+        if (record.name == employeeName) {
+            struct tm tmStart = {};
+            struct tm tmEnd = {};
+            strptime(record.startTime.c_str(), "%Y-%m-%d %H:%M:%S", &tmStart);
+            strptime(record.endTime.c_str(), "%Y-%m-%d %H:%M:%S", &tmEnd);
+            time_t start = mktime(&tmStart);
+            time_t end = mktime(&tmEnd);
+            double hoursWorked = difftime(end, start) / 3600.0;
+            if (hoursWorked > 14) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+int main() {
+    // Read employee records from the input file
+    ifstream inputFile("employee_records.txt");
+    if (!inputFile) {
+        cerr << "Error: Unable to open input file." << endl;
+        return 1;
+    }
+
+    vector<EmployeeRecord> records;
+    string line;
+
+    while (getline(inputFile, line)) {
+        stringstream ss(line);
+        string name, position, startTime, endTime;
+        getline(ss, name, ',');
+        getline(ss, position, ',');
+        getline(ss, startTime, ',');
+        getline(ss, endTime);
+
+        EmployeeRecord record = {name, position, startTime, endTime};
+        records.push_back(record);
+    }
+
+    // Apply the conditions and print results
+    for (const EmployeeRecord& record : records) {
+        string name = record.name;
+
+        if (hasWorkedFor7ConsecutiveDays(records, name)) {
+            cout << name << " has worked for 7 consecutive days." << endl;
+        }
+
+        if (hasShortTimeBetweenShifts(records, name)) {
+            cout << name << " has less than 10 hours between shifts but greater than 1 hour." << endl;
+        }
+
+        if (hasWorkedMoreThan14Hours(records, name)) {
+            cout << name << " has worked for more than 14 hours in a single shift." << endl;
+        }
+    }
+
+    return 0;
+}
